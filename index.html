@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>생활기록부 검증기 — 학교생활기록부 기재 검토 도구</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --navy:#1b2a4a;
+    --navy-2:#243759;
+    --ink:#1c2230;
+    --paper:#f4f5f7;
+    --line:#d9dde5;
+    --accent:#2f6f4f;
+    --danger:#b3432b;
+    --danger-bg:#fbeae5;
+    --warn:#9a6b12;
+    --warn-bg:#fbf1de;
+    --ok:#2f6f4f;
+    --ok-bg:#e9f3ec;
+    --white:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Noto Sans KR',sans-serif; background:var(--paper); color:var(--ink);
+    line-height:1.6;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header{
+    background:var(--navy); color:#fff; padding:28px 32px 24px;
+    border-bottom:4px solid var(--accent);
+  }
+  header .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.12em;
+    text-transform:uppercase; color:#9fb3d6; margin-bottom:6px;
+  }
+  header h1{ margin:0 0 6px; font-size:24px; font-weight:900; letter-spacing:-.01em;}
+  header p{ margin:0; font-size:13.5px; color:#c7d2e6; max-width:760px;}
+
+  main{ max-width:980px; margin:0 auto; padding:24px 20px 80px; }
+
+  .panel{
+    background:#fff; border:1px solid var(--line); border-radius:10px;
+    padding:20px 22px; margin-bottom:18px;
+  }
+  .panel h2{
+    font-size:15px; margin:0 0 14px; display:flex; align-items:center; gap:8px;
+    color:var(--navy-2);
+  }
+  .panel h2 .num{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:#fff; background:var(--navy);
+    padding:2px 7px; border-radius:4px;
+  }
+
+  .row{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;}
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:12px; color:#5b6472; font-weight:500; }
+  select, input[type=text]{
+    font-family:'Noto Sans KR',sans-serif; padding:8px 10px; border:1px solid var(--line);
+    border-radius:6px; font-size:13.5px; background:#fff;
+  }
+  .author-badge{
+    font-family:'Noto Sans KR',sans-serif; font-size:13.5px; font-weight:700; color:var(--navy-2);
+    background:#eef1f7; border:1px solid var(--line); border-radius:6px; padding:8px 14px;
+    display:inline-block;
+  }
+  textarea{
+    width:100%; min-height:150px; padding:14px; border:1px solid var(--line); border-radius:8px;
+    font-family:'Noto Sans KR',sans-serif; font-size:14.5px; line-height:1.7; resize:vertical;
+  }
+  textarea:focus, select:focus{ outline:2px solid var(--navy-2); outline-offset:1px; }
+
+  .counter-bar{
+    display:flex; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; gap:10px;
+  }
+  .byte-readout{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:#5b6472; }
+  .byte-readout b{ font-size:16px; color:var(--ink); }
+  .gauge{ flex:1; min-width:160px; height:8px; background:#eceff3; border-radius:5px; overflow:hidden; margin:0 14px;}
+  .gauge-fill{ height:100%; background:var(--ok); transition:.2s; }
+  .gauge-fill.warn{ background:var(--warn); }
+  .gauge-fill.over{ background:var(--danger); }
+
+  .btn{
+    font-family:'Noto Sans KR',sans-serif; font-weight:700; font-size:13.5px; padding:10px 18px;
+    background:var(--navy); color:#fff; border:none; border-radius:7px; cursor:pointer;
+  }
+  .btn:hover{ background:var(--navy-2); }
+  .btn.secondary{ background:#fff; color:var(--navy); border:1px solid var(--line); }
+  .btn.secondary:hover{ background:#f0f2f5; }
+
+  .result-block{ margin-top:18px; }
+  .verdict{
+    display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:8px;
+    font-weight:700; font-size:14px; margin-bottom:14px;
+  }
+  .verdict.ok{ background:var(--ok-bg); color:var(--ok); }
+  .verdict.warn{ background:var(--warn-bg); color:var(--warn); }
+  .verdict.danger{ background:var(--danger-bg); color:var(--danger); }
+
+  .issue{
+    border:1px solid var(--line); border-left:4px solid var(--danger);
+    border-radius:6px; padding:10px 14px; margin-bottom:8px; background:#fff;
+  }
+  .issue.byte{ border-left-color:var(--warn); }
+  .issue .cat{ font-size:11.5px; font-weight:700; color:var(--danger); letter-spacing:.02em; }
+  .issue.byte .cat{ color:var(--warn); }
+  .issue .match{ font-family:'IBM Plex Mono',monospace; background:#f4f5f7; padding:1px 6px; border-radius:4px; font-size:12.5px; }
+  .issue .advice{ font-size:13px; color:#4a5261; margin-top:4px; }
+
+  .rules-list{ font-size:13px; }
+  .rules-list details{ border:1px solid var(--line); border-radius:6px; margin-bottom:6px; padding:8px 12px; }
+  .rules-list summary{ cursor:pointer; font-weight:500; color:var(--navy-2); }
+  .rules-list ul{ margin:8px 0 2px; padding-left:18px; color:#4a5261; }
+
+  .footnote{ font-size:12px; color:#8a92a1; margin-top:6px; }
+  .empty{ color:#9aa1ac; font-size:13px; padding:10px 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">학교생활기록부 세부능력 및 특기사항</div>
+  <h1>생활기록부 검증기</h1>
+  <p>「학교생활기록 작성 및 관리지침」(교육부훈령 제555호) 및 2026학년도 학교생활기록부 기재요령 기준으로,
+  나이스(NEIS) 방식 글자수(바이트)와 기재 금지 항목 저촉 여부를 검사합니다. 모든 입력은 브라우저 안에서만 처리되며 외부로 전송되지 않습니다.</p>
+</header>
+
+<main>
+
+  <div class="panel">
+    <h2><span class="num">i</span>검사 기준 안내</h2>
+    <div class="rules-list">
+      <details>
+        <summary>글자수(바이트) 계산 방식 — NEIS 기준</summary>
+        <ul>
+          <li>한글 1자 = 3Byte, 영문·숫자 1자 = 1Byte, 엔터(줄바꿈) = 1Byte</li>
+          <li>기재요령 [참고자료 7]의 "최대 글자수"는 <b>한글 기준 글자수</b>이며, NEIS 필드의 실제 입력 한도는
+            이 글자수 × 3Byte로 환산됨 (예: 과목별 세특 500자 → 1,500Byte). 이 도구의 항목별 선택지는 이미 Byte로 환산된 값입니다.</li>
+          <li>기타 특수기호·한자 등은 3Byte로 보수적으로 계산 (실제 NEIS와 1~2Byte 오차 가능)</li>
+        </ul>
+      </details>
+      <details>
+        <summary>기재 금지 항목 (학교생활기록부 작성 시 유의사항)</summary>
+        <ul>
+          <li>공인어학시험 참여·성적·수상 (TOEIC, TOEFL, HSK, JLPT 등)</li>
+          <li>교내·외 대회 참가 사실·성적·수상실적</li>
+          <li>교외상(표창장·감사장·공로상 등)</li>
+          <li>교내·외 인증시험 참여·성적</li>
+          <li>논문 투고·게재·학회 발표, 소논문/연구보고서</li>
+          <li>도서출간 사실</li>
+          <li>지식재산권(특허·실용신안·상표·디자인) 출원·등록</li>
+          <li>해외 어학연수·봉사 등 해외활동실적</li>
+          <li>부모(친인척) 사회·경제적 지위 암시</li>
+          <li>장학생·장학금 관련 내용</li>
+          <li>구체적 대학명·기관명·상호명·제품명·실존인물 이름 (교육관련기관·저자명 등 예외 제외)</li>
+          <li>자격증 명칭 및 취득 사실</li>
+          <li>K-MOOC·MOOC·KOCW, 방과후학교 활동</li>
+          <li>AI 붙여넣기 흔적 — 둥근따옴표, 말줄임표(…), 긴줄표(—/–), 비표준 공백, 전각 문장부호, 마크다운 서식(**, #, 코드블록), 글머리 기호, 가운뎃점 유사문자</li>
+          <li>문장 종결 형식 — '~다.'로 끝나는 서술형 문장(명사형 어미 위반), 과거형(-았/었/였-) 표현</li>
+        </ul>
+      </details>
+      <details>
+        <summary>참고 — 기재 가능한 것 / 불가능한 것 (자료 출처: 옥빛중 정리표)</summary>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:6px;">
+          <div style="flex:1; min-width:220px;">
+            <div style="font-weight:700; color:var(--ok); margin-bottom:4px;">기재 가능한 것</div>
+            <ul>
+              <li>영화 제목</li>
+              <li>노래 제목</li>
+              <li>예술 작품명</li>
+              <li>TV 프로그램명</li>
+              <li>CEO, PD, UCC, IT, POP</li>
+              <li>CF, TV, PAPS, SNS, PPT</li>
+              <li>랜드마크, 유적지 등</li>
+            </ul>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">기재 불가능한 것</div>
+            <ul>
+              <li>영문(이름 등의 영문 표기)</li>
+              <li>제품명(예: 포스트잇, 보드게임 이름 등)</li>
+              <li>상호명(예: 구글, 유튜브, 네이버, 롯데월드 등)</li>
+              <li>기관명(예: 양주시청, 유네스코, UN, EU, NATO 등)</li>
+              <li>교외상 수상 내용, 대회</li>
+              <li>교내·외 인증시험</li>
+              <li>해외 활동실적(어학연수, 봉사활동 등)</li>
+              <li>부모나 친인척의 사회·경제적 지위</li>
+              <li>장학생, 장학금 관련 내용</li>
+              <li>실존인물 이름 (저자명 제외, 꼭 필요하면 사전 문의)</li>
+              <li>지역명(예: 양주)</li>
+              <li>우리 학교명</li>
+              <li>패들렛, 구글 설문지, 구글 클래스룸, 퀴즈앤</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+      <div class="footnote">※ 이 도구는 키워드 기반 자동 검사이며 최종 판단은 반드시 담당 교사가 합니다. 오탐(false positive)이 있을 수 있습니다.</div>
+    </div>
+  </div>
+
+  <!-- ===== 개별 검사 ===== -->
+  <div id="tab-single">
+    <div class="panel">
+      <h2><span class="num">1</span>항목 선택</h2>
+      <div class="row">
+        <div class="field">
+          <label>입력 주체</label>
+          <select id="authorSelect"></select>
+        </div>
+        <div class="field">
+          <label>항목</label>
+          <select id="limitSelect"></select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <div class="field" style="flex:1; min-width:260px;">
+          <label>학교명·지역명 직접 확인 (쉼표로 구분, 선택)</label>
+          <input type="text" id="customTerms" value="옥빛중, 양주" placeholder="예: 옥빛중학교, 양주" style="width:100%;">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="num">2</span>내용 입력</h2>
+      <textarea id="inputText" placeholder="세부능력 및 특기사항 내용을 입력하세요..."></textarea>
+      <div class="counter-bar">
+        <div class="byte-readout"><b id="byteCount">0</b> / <span id="limitDisplay">500</span> Byte</div>
+        <div class="gauge"><div class="gauge-fill" id="gaugeFill" style="width:0%"></div></div>
+        <div class="byte-readout" id="charCountDisplay">0자</div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn" id="checkBtn">① 검증하기</button>
+        <button class="btn secondary" id="fixQuotesBtn">② 특수문자 자동변환</button>
+        <button class="btn secondary" id="spellBtn">③ 맞춤법 검사 열기</button>
+        <button class="btn secondary" id="clearBtn">지우기</button>
+      </div>
+      <div class="footnote" style="margin-top:8px;">※ 맞춤법 검사는 외부 서버 정책상 이 화면에서 직접 결과를 받아올 수 없어, 내용을 복사해 검사 페이지를 새 탭으로 열어드립니다. 새 탭에서 붙여넣기(Ctrl+V)만 하시면 됩니다.</div>
+    </div>
+
+    <div class="panel result-block" id="singleResult" style="display:none;">
+      <h2><span class="num">✓</span>검증 결과</h2>
+      <div id="verdictBox"></div>
+      <div id="issueList"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ---------- 항목별 글자수 제한 (2026 기재요령 [참고자료 7], 학년 단위) ---------- */
+/* 2026 기재요령 [참고자료 7] 표의 글자수는 '한글 기준' 글자수이며,
+   NEIS 입력 필드의 실제 바이트 한도는 글자수 × 3Byte 로 환산됨(한글 1자=3Byte 기준). */
+const LIMITS = [
+  // 학급담임교사
+  {label:"출결상황 특기사항", value:1500, author:"학급담임교사"},
+  {label:"자율·자치활동/자율활동(3학년) 특기사항", value:1500, author:"학급담임교사"},
+  {label:"진로활동 특기사항", value:1500, author:"학급담임교사"},
+  {label:"봉사활동실적 활동내용", value:150, author:"학급담임교사"},
+  {label:"개세특 - 개인별 세부능력 및 특기사항", value:1500, author:"학급담임교사"},
+  {label:"독서활동상황 - 공통", value:1500, author:"학급담임교사"},
+  {label:"행동특성 및 종합의견", value:900, author:"학급담임교사"},
+  // 동아리 담당교사
+  {label:"동아리활동 특기사항", value:1500, author:"동아리 담당교사"},
+  // 교과담당교사
+  {label:"과세특 - 과목별 세부능력 및 특기사항", value:1500, author:"교과담당교사"},
+  {label:"독서활동상황 - 과목별", value:750, author:"교과담당교사"},
+  // 해당 활동별 담당교사
+  {label:"자유학기활동상황 - 각 영역 특기사항", value:3000, author:"해당 활동별 담당교사"},
+];
+
+/* ---------- 기재 금지 항목 규칙 ---------- */
+const RULES = [
+  { cat:"따옴표 형식(AI 붙여넣기 의심)", advice:"둥근따옴표(스마트 쿼트)는 나이스·엑셀에서 깨지거나 다른 문자로 표시될 수 있습니다. 직선형 따옴표(\" 또는 ')로 바꾸세요. AI로 작성한 문장을 그대로 복붙했을 때 자주 나타나는 흔적이기도 합니다.",
+    re:/[\u201C\u201D\u201E\u201F\u2018\u2019\u201A\u201B\u00AB\u00BB]/g },
+  { cat:"말줄임표(AI 붙여넣기 의심)", advice:"말줄임표(…) 한 글자는 나이스에서 깨지거나 물음표로 표시될 수 있습니다. 마침표 세 개(...)로 바꾸거나 문장을 완결하세요.",
+    re:/\u2026/g },
+  { cat:"줄대시(AI 붙여넣기 의심)", advice:"긴 줄표(— 또는 –)는 나이스에서 깨질 수 있습니다. 하이픈(-)이나 쉼표·마침표로 바꾸세요.",
+    re:/[\u2014\u2013]/g },
+  { cat:"비표준 공백(AI 붙여넣기 의심)", advice:"눈에 보이지 않는 특수 공백(줄바꿈 없는 공백 등)이 포함되어 있습니다. 지우고 일반 띄어쓰기로 다시 입력하세요.",
+    re:/[\u00A0\u200B\u2007\u202F]/g },
+  { cat:"전각 문장부호(AI 붙여넣기 의심)", advice:"전각(全角) 문장부호가 섞여 있습니다. 일반 반각 문장부호(, . ! ? ; :)로 바꾸세요.",
+    re:/[，。！？；：]/g },
+  { cat:"마크다운 서식(AI 붙여넣기 의심)", advice:"AI가 생성한 마크다운 서식(굵게 **, 목록 기호, 코드블록 등)이 그대로 남아있습니다. 서술형 문장으로 풀어 쓰고 서식 기호는 삭제하세요.",
+    re:/\*\*[^*\n]{1,80}\*\*|`{1,3}[^`\n]+`{1,3}|^#{1,6}\s|^[-*]\s(?=\S)/gm },
+  { cat:"글머리 기호", advice:"글머리 기호(•, ▪ 등) 나열은 세특 서술 방식에 맞지 않습니다. 문장으로 풀어 쓰세요.",
+    re:/[•▪▸●‣◦]/g },
+  { cat:"가운뎃점 문자 오류", advice:"표준 가운뎃점(·, U+00B7)이 아닌 유사 문자입니다. 나카구로(・), 하이픈점(‧), 아래아(ㆍ), 수학 기호(∙,⋅) 등은 모두 다른 문자로 나이스에서 깨질 수 있으니 표준 가운뎃점(·)으로 바꾸세요. '특수문자 자동변환'으로 일괄 수정됩니다.",
+    re:/[\u30FB\u2027\u318D\u119E\u2219\u22C5\uA78F]/g },
+  { cat:"문장 종결 형식", advice:"세특 등 서술형 항목은 '~다.'가 아닌 명사형 어미(~함, ~보임, ~드러남, ~돋보임 등)로 종결해야 합니다(학교생활기록 작성 및 관리지침 유의사항 — 서술형 문장은 명사형 어미로 종결). 문장을 명사형으로 고치세요.",
+    re:/[가-힣]다\.(?=\s|$)/g },
+  { cat:"과거형 표현", advice:"관찰 사실은 과거형(-았/었/였-)보다 현재형·명사형 표현을 권장합니다. 예: '표현하였음' → '표현함', '보였다' → '보임'.",
+    re:/(았|었|였)(다\.|음(?=[\s,.]|$)|습니다)/g },
+  { cat:"공인어학시험", advice:"공인어학시험 명칭·성적·응시 사실은 삭제하세요(가 항목).",
+    re:/TOEIC|TOEFL|TEPS|HSK|JPT|JLPT|DELF|DALF|TESTDAF|\bZD\b|\bDSH\b|\bDSD\b|TORFL|DELE|한자능력검정|한자급수|실용한자|상공회의소.?한자|한자자격검정|YBM\s?상무한검/gi },
+  { cat:"대회·수상실적", advice:"대회 참가·수상 사실은 세특에 기재할 수 없습니다(나 항목). 교내대회는 '수상경력' 항목에만 입력 가능.",
+    re:/(교내|교외)?\s?(경시대회|올림피아드|콘테스트|대회)(에|에서)?\s?(참가|참여|출전|응시|수상|입상)|금상|은상|동상(?!\s?화합물)|장려상|최우수상\b|우수상\b|대상\s?(을|를)?\s?(수상|받)/g },
+  { cat:"교외상", advice:"교외 기관·단체가 수여한 표창·상장은 기재할 수 없습니다(다 항목).",
+    re:/표창장|감사장|공로상/g },
+  { cat:"인증시험", advice:"교내·외 인증시험 참여 사실이나 성적은 기재할 수 없습니다(라 항목).",
+    re:/인증시험(에)?\s?(합격|응시|취득)/g },
+  { cat:"논문/연구보고서", advice:"논문 투고·게재·학회발표, 소논문(연구보고서) 관련 내용은 기재할 수 없습니다(바 항목, 마-5).",
+    re:/논문.{0,10}(투고|게재)|학회.{0,10}발표|소논문|연구보고서/g },
+  { cat:"도서출간", advice:"도서출간 사실은 기재할 수 없습니다(사 항목).",
+    re:/도서\s?출간|저서\s?출간|단행본\s?출간|책을?\s?출간/g },
+  { cat:"지식재산권", advice:"특허 등 지식재산권 출원·등록 사실은 기재할 수 없습니다(아 항목).",
+    re:/특허\s?(출원|등록)|실용신안|상표\s?등록|디자인\s?등록|지식재산권/g },
+  { cat:"해외활동", advice:"해외 어학연수·봉사 등 해외활동실적은 기재할 수 없습니다(자 항목).",
+    re:/해외\s?(봉사|어학연수|캠프|연수|활동)|어학연수|해외\s?유학/g },
+  { cat:"부모(친인척) 사회·경제적 지위", advice:"부모·친인척의 직업·직위 등 사회·경제적 지위를 암시하는 표현은 삭제하세요(차 항목).",
+    re:/(아버지|어머니|부모님?|친인척|삼촌|이모|고모)[^.]{0,15}(의사|변호사|판사|검사|교수|대표이사|사장|임원|CEO|공무원|회사원|병원장|약사)/g },
+  { cat:"장학금", advice:"장학생·장학금 관련 내용은 기재할 수 없습니다(카 항목).",
+    re:/장학금|장학생/g },
+  { cat:"구체적 대학명·기관명", advice:"교육관련기관(교육부·시도교육청·교육지원청 및 소속기관) 외 특정 대학명·기관명·국제기구명은 기재할 수 없습니다(타 항목). 예: 양주시청, 유네스코, UN, EU, NATO 등",
+    re:/서울대(?!학원)|연세대(?!학원)|고려대(?!학원)|카이스트|KAIST|포항공대|성균관대|한양대|중앙대|경희대|이화여대|서강대|한국외대|국민대|숭실대|건국대|동국대|홍익대|[가-힣A-Za-z0-9]+학원(?!\s?구조)|[가-힣]+시청|유네스코|UNESCO|\bUN\b|\bEU\b|\bNATO\b/g },
+  { cat:"상호명·제품명", advice:"구체적인 상호명·제품명·특정 상용 서비스명은 기재할 수 없습니다(타 항목). 예: 구글, 유튜브, 네이버, 롯데월드, 포스트잇, 패들렛, 구글 설문지, 구글 클래스룸, 퀴즈앤 등. '온라인 학습 플랫폼', '설문 도구' 등 일반 명칭으로 바꿔 쓰세요.",
+    re:/구글(\s?(클래스룸|설문지))?|유튜브|네이버(?!\s?밴드)|롯데월드|포스트잇|패들렛|퀴즈앤/g },
+  { cat:"실존인물 이름(성명+직함 의심)", advice:"실존 인물의 이름은 원칙적으로 기재할 수 없습니다(저자명 제외, 꼭 필요하면 사전 문의). 성씨로 시작하는 이름+직함 표현이 감지되었으니 실제 인명인지 확인하세요.",
+    re:/(?:김|이|박|최|정|강|조|윤|장|임|한|오|서|신|권|황|안|송|류|전|홍|고|문|양|손|배|백|허|유|남|심|노|하|곽|성|차|주)[가-힣]{1,2}\s?(선생님|교사|강사|박사|교수|작가|대표|회장|원장|감독|아나운서|기자|가수|배우|선수|코치)(님)?/g },
+  { cat:"자격증", advice:"자격증 명칭 및 취득 사실은 기재할 수 없습니다(파 항목).",
+    re:/자격증\s?(취득|합격|을|를)|정보처리기사|컴퓨터활용능력|워드프로세서|전산회계|바리스타\s?자격|제과제빵\s?자격|한국사능력검정|한국사\s?검정|GTQ|ITQ/gi },
+  { cat:"K-MOOC/MOOC/방과후학교", advice:"K-MOOC, MOOC, KOCW, 방과후학교 활동 관련 사항은 기재할 수 없습니다(마-3, 마-4 항목).",
+    re:/K-MOOC|KOCW|무크\b|MOOC|방과후학교/gi },
+];
+
+/* ---------- AI 붙여넣기 특유 문자 → 엑셀/NEIS 호환 표준 문자로 변환 ---------- */
+function normalizeAiArtifacts(str){
+  return str
+    .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u2014\u2013]/g, "-")
+    .replace(/[\u00A0\u200B\u2007\u202F]/g, " ")
+    .replace(/，/g, ",").replace(/。/g, ".").replace(/！/g, "!")
+    .replace(/？/g, "?").replace(/；/g, ";").replace(/：/g, ":")
+    .replace(/[\u30FB\u2027\u318D\u119E\u2219\u22C5\uA78F]/g, "\u00B7") // 가운뎃점 유사문자 -> 표준 가운뎃점(·)
+    .replace(/\*\*([^*\n]{1,80})\*\*/g, "$1")   // **굵게** -> 굵게
+    .replace(/`{1,3}([^`\n]+)`{1,3}/g, "$1")     // `코드` -> 코드
+    .replace(/^#{1,6}\s+/gm, "")                  // # 제목 -> 제목
+    .replace(/^[-*]\s+(?=\S)/gm, "");             // - 목록 -> 목록
+}
+
+/* ---------- NEIS 방식 바이트 계산 ---------- */
+function calcBytes(str){
+  let bytes = 0;
+  for (const ch of str){
+    if (ch === "\n") bytes += 1;
+    else if (/[가-힣]/.test(ch)) bytes += 3;
+    else if (/[\x00-\x7F]/.test(ch)) bytes += 1; // 영문/숫자/ASCII 특수문자/공백
+    else bytes += 3; // 한자, 전각기호 등 기타 문자는 보수적으로 3Byte 처리
+  }
+  return bytes;
+}
+
+/* ---------- 입력주체 → 항목 2단계 드롭다운 ---------- */
+const AUTHORS = [...new Set(LIMITS.map(l=>l.author))];
+
+function fillAuthorSelect(sel){
+  AUTHORS.forEach(author=>{
+    const opt = document.createElement("option");
+    opt.value = author; opt.textContent = author;
+    sel.appendChild(opt);
+  });
+}
+
+function fillItemSelect(sel, author){
+  sel.innerHTML = "";
+  LIMITS.forEach((l,i)=>{
+    if (l.author !== author) return;
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = `${l.label} (${l.value/3}자 / ${l.value}Byte)`;
+    sel.appendChild(opt);
+  });
+}
+
+const authorSelect = document.getElementById("authorSelect");
+const limitSelect = document.getElementById("limitSelect");
+fillAuthorSelect(authorSelect);
+fillItemSelect(limitSelect, authorSelect.value);
+authorSelect.addEventListener("change", ()=>{
+  fillItemSelect(limitSelect, authorSelect.value);
+  updateCounter();
+});
+
+/* ---------- 개별 검사 ---------- */
+const inputText = document.getElementById("inputText");
+const byteCountEl = document.getElementById("byteCount");
+const charCountEl = document.getElementById("charCountDisplay");
+const limitDisplay = document.getElementById("limitDisplay");
+const gaugeFill = document.getElementById("gaugeFill");
+
+function currentItem(){
+  return LIMITS[parseInt(limitSelect.value, 10)];
+}
+function currentLimit(){
+  return currentItem().value;
+}
+
+function updateCounter(){
+  const text = inputText.value;
+  const bytes = calcBytes(text);
+  const item = currentItem();
+  const limit = item.value;
+  byteCountEl.textContent = bytes;
+  charCountEl.textContent = [...text].length + "자";
+  limitDisplay.textContent = limit;
+  const pct = Math.min(100, (bytes/limit)*100);
+  gaugeFill.style.width = pct + "%";
+  gaugeFill.className = "gauge-fill" + (bytes>limit ? " over" : (pct>90 ? " warn" : ""));
+}
+inputText.addEventListener("input", updateCounter);
+limitSelect.addEventListener("change", updateCounter);
+updateCounter();
+
+function scanText(text){
+  const issues = [];
+  RULES.forEach(rule=>{
+    const matches = [...text.matchAll(rule.re)];
+    const seen = new Set();
+    matches.forEach(m=>{
+      const val = m[0];
+      if (seen.has(val)) return;
+      seen.add(val);
+      issues.push({cat:rule.cat, match:val, advice:rule.advice});
+    });
+  });
+  return issues;
+}
+
+function scanCustomTerms(text){
+  const raw = document.getElementById("customTerms").value;
+  const terms = raw.split(",").map(t=>t.trim()).filter(Boolean);
+  const issues = [];
+  terms.forEach(term=>{
+    if (text.includes(term)){
+      issues.push({
+        cat:"학교명·지역명(직접 지정)",
+        match:term,
+        advice:"학교명·지역명은 원칙적으로 구체적으로 기재할 수 없습니다. 일반적인 표현으로 바꾸세요."
+      });
+    }
+  });
+  return issues;
+}
+
+function getFilteredIssues(text){
+  let issues = [...scanText(text), ...scanCustomTerms(text)];
+  if (currentItem().label.includes("독서활동상황")){
+    const exempt = new Set(["구체적 대학명·기관명", "상호명·제품명"]);
+    issues = issues.filter(i => !exempt.has(i.cat));
+  }
+  return issues;
+}
+
+document.getElementById("checkBtn").addEventListener("click", ()=>{
+  const text = inputText.value.trim();
+  const item = currentItem();
+  const limit = currentLimit();
+  const bytes = calcBytes(text);
+  const issues = getFilteredIssues(text);
+  const resultPanel = document.getElementById("singleResult");
+  const verdictBox = document.getElementById("verdictBox");
+  const issueList = document.getElementById("issueList");
+  resultPanel.style.display = "block";
+  issueList.innerHTML = "";
+
+  if (!text){
+    verdictBox.innerHTML = `<div class="verdict warn">입력된 내용이 없습니다.</div>`;
+    return;
+  }
+
+  const over = bytes > limit;
+  let verdictClass = "ok", verdictMsg = "글자수 및 금지 항목 검사 결과 특이사항이 없습니다.";
+  if (over && issues.length){
+    verdictClass = "danger"; verdictMsg = `글자수 초과(${bytes - limit}Byte 초과) 및 기재 금지 표현 ${issues.length}건이 발견되었습니다. 수정이 필요합니다.`;
+  } else if (over){
+    verdictClass = "warn"; verdictMsg = `글자수가 ${bytes - limit}Byte 초과되었습니다. 문장을 압축해주세요.`;
+  } else if (issues.length){
+    verdictClass = "danger"; verdictMsg = `기재 금지 표현 ${issues.length}건이 발견되었습니다. 수정이 필요합니다.`;
+  }
+  verdictBox.innerHTML = `<div class="verdict ${verdictClass}">${verdictMsg}</div>`;
+
+  if (over){
+    const div = document.createElement("div");
+    div.className = "issue byte";
+    div.innerHTML = `<div class="cat">글자수 초과</div>
+      <div class="advice">현재 ${bytes}Byte / 허용 ${limit}Byte — <b>${bytes-limit}Byte</b>를 줄여야 합니다.
+      (한글 약 ${Math.ceil((bytes-limit)/3)}자 분량에 해당) 불필요한 수식어·중복 표현을 먼저 정리해보세요.</div>`;
+    issueList.appendChild(div);
+  }
+  issues.forEach(iss=>{
+    const div = document.createElement("div");
+    div.className = "issue";
+    div.innerHTML = `<div class="cat">${iss.cat}</div>
+      <div>검출: <span class="match">${escapeHtml(iss.match)}</span></div>
+      <div class="advice">${iss.advice}</div>`;
+    issueList.appendChild(div);
+  });
+});
+
+document.getElementById("fixQuotesBtn").addEventListener("click", ()=>{
+  const before = inputText.value;
+  const after = normalizeAiArtifacts(before);
+  const changed = before !== after;
+  inputText.value = after;
+  updateCounter();
+  if (changed){
+    document.getElementById("singleResult").style.display = "block";
+    document.getElementById("verdictBox").innerHTML =
+      `<div class="verdict ok">둥근따옴표·말줄임표·긴줄표·특수공백·전각기호·가운뎃점 유사문자·마크다운 서식(**, #, 코드블록)을 표준 문자/서술형으로 변환했습니다. 글머리기호(•), 문장 종결 형식(~다.), 과거형 표현은 문장 재작성이 필요해 자동변환되지 않으니 '검증하기'로 다시 확인하세요.</div>`;
+    document.getElementById("issueList").innerHTML = "";
+  } else {
+    alert("변환할 특수문자가 없습니다.");
+  }
+});
+
+document.getElementById("spellBtn").addEventListener("click", async ()=>{
+  if (!inputText.value.trim()){ alert("검사할 내용이 없습니다."); return; }
+
+  // 순서에 상관없이 항상 정리된 최종본을 복사하도록, 복사 직전에 자동변환을 먼저 실행
+  inputText.value = normalizeAiArtifacts(inputText.value);
+  updateCounter();
+
+  // 자동변환으로 못 고치는 '금지 표현'이 아직 남아있으면 조용히 재검사 후 확인창으로 한 번 멈춰세움
+  const remaining = getFilteredIssues(inputText.value);
+  if (remaining.length){
+    const catList = [...new Set(remaining.map(i=>i.cat))].join(", ");
+    const proceed = confirm(
+      `아직 해결되지 않은 기재 금지 표현이 ${remaining.length}건 있습니다.\n(${catList})\n\n` +
+      `맞춤법 검사만 먼저 하고 싶다면 '확인'을 누르세요. 금지 표현을 먼저 고치려면 '취소'를 누르고 '① 검증하기' 결과를 확인해주세요.`
+    );
+    if (!proceed) return;
+  }
+
+  const text = inputText.value.trim();
+  try{
+    await navigator.clipboard.writeText(text);
+    alert("특수문자를 정리한 내용을 복사했습니다. 새 탭에서 붙여넣기(Ctrl+V)만 하세요.");
+  } catch(e){
+    alert("자동 복사에 실패했습니다. 새 탭에서 직접 복사/붙여넣기 해주세요.");
+  }
+  window.open("https://nara-speller.co.kr/speller/", "_blank");
+});
+
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  inputText.value = "";
+  updateCounter();
+  document.getElementById("singleResult").style.display = "none";
+});
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+</script>
+</body>
+</html>
